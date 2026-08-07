@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const { expressErrorHandler } = require('crash-heal-nodesdk');
 
 const app = express();
@@ -6,6 +7,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+app.use('/panel', express.static(path.join(__dirname, 'public')));
 
 // ---- In-memory store ----
 let todos = [
@@ -177,6 +179,7 @@ app.use((req, res) => {
 // Start server
 const server = app.listen(PORT, () => {
   console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+  console.log(`\nCrash panel UI: http://localhost:${PORT}/panel`);
   console.log('\nAvailable endpoints:');
   console.log(`  GET    /                       - Health check`);
   console.log(`  GET    /todos                  - List todos (?completed=, ?priority=)`);

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todo API — Crash Panel</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #262b36;
+    --text: #e6e9ef;
+    --muted: #8b93a7;
+    --accent: #5b8def;
+    --ok: #3ecf8e;
+    --warn: #e0a13d;
+    --err: #e5534b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  header {
+    max-width: 1100px;
+    margin: 0 auto 20px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card .route {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .card .desc {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.4;
+    min-height: 32px;
+  }
+  .card .inputs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .card input {
+    background: #0c0e12;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    width: 100px;
+  }
+  .card textarea {
+    background: #0c0e12;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    width: 100%;
+    resize: vertical;
+    min-height: 44px;
+  }
+  .card button {
+    align-self: flex-start;
+    background: var(--accent);
+    color: #0b0d11;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .card button:hover { opacity: 0.9; }
+  .card .result {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #0c0e12;
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 140px;
+    overflow: auto;
+    display: none;
+    border: 1px solid var(--border);
+  }
+  .status-2 { color: var(--ok); }
+  .status-4 { color: var(--warn); }
+  .status-5 { color: var(--err); }
+  .status-net { color: var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Todo API — Crash Panel</h1>
+  <p>Fire requests at each endpoint, including the ones with intentional bugs, and see the raw response.</p>
+</header>
+<div class="grid" id="grid"></div>
+
+<script>
+const endpoints = [
+  { method: 'GET', path: '/', desc: 'Health check.' },
+  { method: 'GET', path: '/todos', desc: 'List todos. Filter with ?completed= or ?priority=.' },
+  { method: 'GET', path: '/todos/{id}', desc: 'Get one todo. Crashes (TypeError) if id not found.', params: [{ name: 'id', default: '9999' }] },
+  { method: 'POST', path: '/todos', desc: 'Create a todo. Crashes if title is missing/non-string.', body: '{}' },
+  { method: 'PUT', path: '/todos/{id}', desc: 'Update a todo by array index. Crashes on out-of-range id.', params: [{ name: 'id', default: '9999' }], body: '{"title":"Updated"}' },
+  { method: 'PATCH', path: '/todos/{id}/toggle', desc: 'Toggle completed. Crashes if id not found.', params: [{ name: 'id', default: '9999' }] },
+  { method: 'DELETE', path: '/todos/{id}', desc: 'Delete a todo. Crashes if id not found.', params: [{ name: 'id', default: '9999' }] },
+  { method: 'GET', path: '/todos/stats', desc: 'Stats. Crashes (RangeError) only when the list is empty.' },
+  { method: 'GET', path: '/todos/sorted', desc: 'Sort by due date. Always crashes (dueDate is a string).' },
+  { method: 'POST', path: '/todos/{id}/duplicate', desc: 'Duplicate a todo. Always crashes: infinite recursion / stack overflow.', params: [{ name: 'id', default: '1' }] },
+  { method: 'PUT', path: '/todos/reorder', desc: 'Reorder by swapping indices. Crashes on invalid indices.', body: '{"from":0,"to":99}' },
+  { method: 'POST', path: '/todos/related', desc: 'Related todos. Crashes if filters is missing.', body: '{}' },
+  { method: 'POST', path: '/todos/import', desc: 'Import raw JSON. Crashes on malformed JSON.', body: '{"raw":"not valid json"}' },
+  { method: 'GET', path: '/crash', desc: 'Always crashes: BigInt division by zero (real engine RangeError).' },
+  { method: 'GET', path: '/divide', desc: 'Crashes if denom=0.', params: [{ name: 'num', default: '20' }, { name: 'denom', default: '0' }], query: true },
+];
+
+const grid = document.getElementById('grid');
+
+endpoints.forEach((ep, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const route = document.createElement('div');
+  route.className = 'route';
+  route.textContent = `${ep.method} ${ep.path}`;
+  card.appendChild(route);
+
+  const desc = document.createElement('div');
+  desc.className = 'desc';
+  desc.textContent = ep.desc;
+  card.appendChild(desc);
+
+  const paramInputs = {};
+  if (ep.params) {
+    const row = document.createElement('div');
+    row.className = 'inputs';
+    ep.params.forEach(p => {
+      const input = document.createElement('input');
+      input.placeholder = p.name;
+      input.value = p.default;
+      paramInputs[p.name] = input;
+      row.appendChild(input);
+    });
+    card.appendChild(row);
+  }
+
+  let bodyInput = null;
+  if (ep.body !== undefined) {
+    bodyInput = document.createElement('textarea');
+    bodyInput.value = ep.body;
+    card.appendChild(bodyInput);
+  }
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Trigger';
+  card.appendChild(btn);
+
+  const result = document.createElement('div');
+  result.className = 'result';
+  card.appendChild(result);
+
+  btn.addEventListener('click', async () => {
+    let path = ep.path;
+    const queryParts = [];
+    if (ep.params) {
+      ep.params.forEach(p => {
+        const val = paramInputs[p.name].value;
+        if (ep.query) {
+          queryParts.push(`${p.name}=${encodeURIComponent(val)}`);
+        } else {
+          path = path.replace(`{${p.name}}`, encodeURIComponent(val));
+        }
+      });
+    }
+    if (queryParts.length) path += '?' + queryParts.join('&');
+
+    const opts = { method: ep.method, headers: {} };
+    if (bodyInput) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = bodyInput.value;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    result.style.display = 'block';
+    result.textContent = 'Waiting for response…';
+    result.className = 'result';
+
+    const started = performance.now();
+    try {
+      const res = await fetch(path, opts);
+      const ms = Math.round(performance.now() - started);
+      const text = await res.text();
+      const statusClass = res.status >= 500 ? 'status-5' : res.status >= 400 ? 'status-4' : 'status-2';
+      result.innerHTML = `<span class="${statusClass}">${res.status} ${res.statusText}</span> · ${ms}ms\n\n${escapeHtml(text)}`;
+    } catch (err) {
+      result.innerHTML = `<span class="status-net">network error / connection dropped</span>\n\n${escapeHtml(String(err))}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Trigger';
+    }
+  });
+
+  grid.appendChild(card);
+});
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+</script>
+</body>
+</html>
