@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "crash-heal-nodesdk": "file:../crash-heal-nodesdk"
+    "crash-heal-nodesdk": "github:QL-Tushar-Kumar/crash-heal-nodesdk#v0.5.0"
   }
 }
