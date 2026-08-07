@@ -1,4 +1,5 @@
 const express = require('express');
+const { expressErrorHandler } = require('crash-heal-nodesdk');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -155,6 +156,10 @@ app.get('/divide', (req, res, next) => {
 
   res.json({ result: num / denom });
 });
+
+// Reports the error to crash-heal, then hands it on unchanged — the app's own
+// error handler below still decides the response. Must come before it.
+app.use(expressErrorHandler());
 
 // Error handler
 app.use((err, req, res, next) => {
